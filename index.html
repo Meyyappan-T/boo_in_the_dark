@@ -1,0 +1,535 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Boo in the Dark</title>
+<style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sniglet:wght@400;800&family=Nunito:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: one full-screen room. Daytime it is ordinary; when the viewer's theme goes dark, the lights go out and a short story plays. */
+:root {
+  --wall: #d6e4ee;
+  --floor: #c4b49c;
+  --furn: #8794b8;
+  --furn2: #a3aecb;
+  --pane: #a9d6f0;
+  --orb: #fff3b8;
+  --book: #6f7ba3;
+  --ink: #2b2d42;
+  --muted: #5d6482;
+  --glow: #ffe9b0;
+  --ghost: #f6f4ff;
+  --night: #07070c;
+  --display: "Sniglet", "Comic Sans MS", system-ui, sans-serif;
+  --body: "Nunito", system-ui, sans-serif;
+}
+body.night {
+  --wall: #1b1a2b;
+  --floor: #141322;
+  --furn: #2c2a44;
+  --furn2: #36334f;
+  --pane: #0f0e1a;
+  --orb: #d9d3a8;
+  --book: #3d3a5c;
+  --ink: #e9e6ff;
+  --muted: #8f8ab8;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; } }
+:root[data-theme="dark"] { color-scheme: dark; }
+html, body { height: 100%; }
+body {
+  background: var(--wall);
+  color: var(--ink);
+  font-family: var(--body);
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: background 1s;
+}
+body.night { cursor: none; }
+
+#room { position: fixed; inset: 0; z-index: 1; }
+#room .wall { position: absolute; inset: 0 0 28% 0; background: var(--wall); transition: background 1s; }
+#room .floor { position: absolute; inset: 72% 0 0 0; background: var(--floor); transition: background 1s; }
+.prop { position: absolute; fill: var(--furn); }
+.prop, .prop * { transition: fill 1s; }
+.f2 { fill: var(--furn2); } .pane { fill: var(--pane); } .orb { fill: var(--orb); } .book { fill: var(--book); } .shelfline { fill: var(--floor); }
+
+#switch {
+  position: fixed; z-index: 3; left: 31%; top: 40%;
+  width: 34px; height: 54px; border-radius: 6px;
+  background: var(--furn2); border: 0; padding: 0; cursor: pointer;
+  display: grid; place-items: center;
+  box-shadow: inset 0 0 0 2px var(--furn);
+}
+#switch::after { content: ""; width: 10px; height: 20px; border-radius: 3px; background: var(--ghost); transform: translateY(-6px); transition: transform .15s; }
+#switch:hover::after { transform: translateY(-3px); }
+#switch:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+body.night #switch { display: none; }
+
+.candle { position: fixed; z-index: 5; width: 26px; height: 54px; transform: translate(-50%, -100%); pointer-events: none; }
+.candle svg { width: 100%; height: 100%; overflow: visible; }
+.candle .flame { opacity: 0; transform-origin: 13px 14px; transition: opacity .4s; }
+.candle .halo { position: absolute; left: 50%; top: 10px; width: 260px; height: 260px; transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 210, 130, .42), rgba(255, 190, 110, .12) 45%, transparent 70%); opacity: 0; transition: opacity 1s; }
+.candle.lit { z-index: 12; }
+.candle.lit .flame { opacity: 1; animation: flicker .18s infinite alternate; }
+body.night .candle.lit .halo { opacity: 1; }
+@keyframes flicker { from { transform: scale(1, 1) rotate(-2deg); } to { transform: scale(.92, 1.08) rotate(2deg); } }
+.spark { position: fixed; z-index: 12; width: 4px; height: 4px; border-radius: 50%; background: var(--glow); box-shadow: 0 0 8px 2px rgba(255, 233, 176, .6);
+  transform: translate(-50%, -50%); pointer-events: none; opacity: 0; }
+body.night .spark.on { animation: twinkle 2.2s ease-in-out infinite; }
+@keyframes twinkle { 0%, 100% { opacity: .05; } 50% { opacity: .75; } }
+
+.ghost { position: fixed; z-index: 5; width: 74px; height: 86px; transform: translate(-50%, -50%); pointer-events: none; opacity: 0; transition: opacity .6s; }
+.ghost .inner { width: 100%; height: 100%; animation: bob 2.4s ease-in-out infinite; }
+.ghost svg { width: 100%; height: 100%; overflow: visible; }
+.ghost.show { opacity: .9; }
+.ghost.flee { transition: left .9s cubic-bezier(.5, 0, .3, 1), top .9s cubic-bezier(.5, 0, .3, 1), opacity .6s; }
+.ghost.front { z-index: 12; opacity: 1; filter: drop-shadow(0 0 14px rgba(246, 244, 255, .45)); }
+.ghost.wave .inner { animation: wave .5s ease-in-out 4; }
+.ghost .eye { transform-box: fill-box; transform-origin: center; animation: blink 3.4s infinite; }
+@keyframes bob { 50% { transform: translateY(-10px); } }
+@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+@keyframes wave { 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
+.friend { width: 40px; height: 46px; z-index: 12; filter: drop-shadow(0 0 10px rgba(246, 244, 255, .4)); }
+
+#veil {
+  position: fixed; inset: 0; pointer-events: none; z-index: 10; opacity: 0; transition: opacity .7s;
+  --x: 50vw; --y: 50vh; --r: 90px; --dark: .985;
+  background: radial-gradient(circle at var(--x) var(--y),
+    rgba(255, 233, 176, .10) 0,
+    rgba(7, 7, 12, 0) calc(var(--r) * .55),
+    rgba(7, 7, 12, calc(var(--dark) * .86)) var(--r),
+    rgba(7, 7, 12, var(--dark)) calc(var(--r) * 1.6));
+}
+body.night #veil { opacity: 1; }
+#torch {
+  position: fixed; left: 0; top: 0; z-index: 20; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--glow); box-shadow: 0 0 18px 6px rgba(255, 233, 176, .55);
+  pointer-events: none; display: none;
+}
+body.night #torch { display: block; }
+
+#caption {
+  position: fixed; z-index: 30; left: 0; right: 0; bottom: env(safe-area-inset-bottom, 0px);
+  padding-block: 22px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  text-align: center; pointer-events: none;
+  display: grid; gap: 6px; justify-items: center;
+}
+#line { font-family: var(--display); font-size: clamp(20px, 3.4vw, 28px); color: var(--ink); text-wrap: balance; max-width: 34ch; min-height: 1.3em; transition: opacity .3s; }
+body.night #line { color: #f1eeff; text-shadow: 0 0 14px rgba(0, 0, 0, .9); }
+#hint { font-size: 14px; color: var(--muted); }
+body.night #hint { display: none; }
+
+#scare { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; pointer-events: none; opacity: 0; background: #000; }
+#scare svg { width: min(120vw, 120vh); height: auto; transform: scale(.15); }
+#scare.go { opacity: 1; animation: flash .5s steps(2) 2; }
+#scare.go svg { animation: lunge .22s cubic-bezier(.2, 1.6, .4, 1) forwards, jitter .06s linear .22s 18; }
+#scare.out { opacity: 0; transition: opacity .5s; }
+body.shake #room { animation: shake .08s linear 10; }
+@keyframes lunge { to { transform: scale(1.15); } }
+@keyframes jitter { 0%, 100% { transform: scale(1.15) translate(0, 0); } 25% { transform: scale(1.17) translate(-1.5%, 1%); } 50% { transform: scale(1.14) translate(1.5%, -1%); } 75% { transform: scale(1.16) translate(-1%, -1.5%); } }
+@keyframes flash { 0% { background: #2a0008; } 100% { background: #000; } }
+@keyframes shake { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-8px, 5px); } 75% { transform: translate(7px, -6px); } }
+
+.panel {
+  position: fixed; inset: 0; z-index: 40; display: grid; place-items: center;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: rgba(7, 7, 12, .88); cursor: default;
+}
+.panel .card { max-width: 32ch; text-align: center; display: grid; gap: 14px; justify-items: center; }
+.panel h1 { font-family: var(--display); font-weight: 800; font-size: clamp(34px, 8vw, 52px); margin: 0; line-height: 1.05; text-wrap: balance; color: var(--ghost); }
+.panel p { margin: 0; color: #a39fc6; font-size: 16px; line-height: 1.5; }
+.panel .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.panel button {
+  font-family: var(--display); font-size: 18px; font-weight: 800;
+  background: var(--glow); color: var(--night); border: 0; border-radius: 999px; padding: 12px 26px; cursor: pointer;
+  box-shadow: 0 0 30px rgba(255, 233, 176, .3);
+}
+.panel button.quiet { background: transparent; color: var(--ghost); box-shadow: inset 0 0 0 2px #4a4670; }
+.panel button:focus-visible { outline: 3px solid var(--ghost); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ghost .inner, .ghost .eye, .candle.lit .flame, body.night .spark.on { animation: none; }
+  #scare.go, #scare.go svg { animation: none; transform: scale(1); }
+  body.shake #room { animation: none; }
+}
+</style>
+
+<div id="room">
+  <div class="wall"></div>
+  <div class="floor"></div>
+  <svg class="prop" style="left:8%;top:12%;width:120px;height:150px" viewBox="0 0 120 150"><rect width="120" height="150" rx="6"/><rect class="pane" x="8" y="8" width="49" height="64"/><rect class="pane" x="63" y="8" width="49" height="64"/><rect class="pane" x="8" y="78" width="49" height="64"/><rect class="pane" x="63" y="78" width="49" height="64"/><circle class="orb" cx="88" cy="36" r="14"/></svg>
+  <svg class="prop" style="right:6%;top:30%;width:150px;height:230px" viewBox="0 0 150 230"><rect width="150" height="230" rx="4"/><g class="book"><rect x="10" y="12" width="12" height="54"/><rect x="25" y="20" width="10" height="46"/><rect x="38" y="14" width="14" height="52"/><rect x="70" y="24" width="10" height="42"/><rect x="83" y="16" width="12" height="50"/><rect x="18" y="86" width="14" height="52"/><rect x="36" y="92" width="10" height="46"/><rect x="96" y="84" width="12" height="54"/><rect x="111" y="90" width="10" height="48"/><rect x="12" y="160" width="12" height="54"/><rect x="60" y="166" width="14" height="48"/><rect x="77" y="158" width="10" height="56"/></g><rect class="shelfline" x="0" y="66" width="150" height="8"/><rect class="shelfline" x="0" y="138" width="150" height="8"/></svg>
+  <svg class="prop" style="left:12%;bottom:12%;width:200px;height:150px" viewBox="0 0 200 150"><rect x="20" y="0" width="160" height="90" rx="30"/><rect x="0" y="50" width="45" height="90" rx="18"/><rect x="155" y="50" width="45" height="90" rx="18"/><rect class="f2" x="30" y="80" width="140" height="50" rx="10"/><rect x="25" y="130" width="10" height="20"/><rect x="165" y="130" width="10" height="20"/></svg>
+  <svg class="prop" style="left:44%;bottom:10%;width:80px;height:260px" viewBox="0 0 80 260"><path d="M12 0h56l12 60H0z"/><rect x="37" y="60" width="6" height="190"/><ellipse cx="40" cy="254" rx="30" ry="6"/></svg>
+  <svg class="prop" style="right:24%;bottom:10%;width:110px;height:170px" viewBox="0 0 110 170"><path class="f2" d="M30 110h50l-8 60H38z"/><ellipse cx="55" cy="60" rx="10" ry="50"/><ellipse cx="30" cy="75" rx="9" ry="40" transform="rotate(-30 30 75)"/><ellipse cx="80" cy="75" rx="9" ry="40" transform="rotate(30 80 75)"/><ellipse cx="18" cy="100" rx="8" ry="26" transform="rotate(-60 18 100)"/><ellipse cx="92" cy="100" rx="8" ry="26" transform="rotate(60 92 100)"/></svg>
+  <svg class="prop" style="left:58%;top:14%;width:110px;height:84px" viewBox="0 0 110 84"><rect width="110" height="84" rx="4"/><rect class="pane" x="9" y="9" width="92" height="66"/><path class="book" d="M14 70l26-30 18 18 14-12 26 24z"/></svg>
+</div>
+
+<button id="switch" type="button" aria-label="Turn off the lights"></button>
+<div id="veil"></div>
+<div id="torch"></div>
+
+<div id="caption" aria-live="polite">
+  <div id="line">A perfectly ordinary room.</div>
+  <div id="hint">Nothing much happens here during the day.</div>
+</div>
+
+<div id="scare" aria-hidden="true">
+  <svg viewBox="0 0 200 220">
+    <defs><radialGradient id="sg" cx="50%" cy="40%" r="65%"><stop offset="0" stop-color="#ffffff"/><stop offset=".7" stop-color="#cfd2e6"/><stop offset="1" stop-color="#7d7f99"/></radialGradient></defs>
+    <path d="M100 4C46 4 14 46 14 98v116l18-16 20 20 18-20 15 20 15-20 15 20 18-20 20 20 18-16V98C186 46 154 4 100 4z" fill="url(#sg)"/>
+    <ellipse cx="66" cy="88" rx="20" ry="30" fill="#000" transform="rotate(-12 66 88)"/>
+    <ellipse cx="134" cy="88" rx="20" ry="30" fill="#000" transform="rotate(12 134 88)"/>
+    <circle cx="68" cy="94" r="4" fill="#ff2a3d"/>
+    <circle cx="132" cy="94" r="4" fill="#ff2a3d"/>
+    <ellipse cx="100" cy="160" rx="30" ry="40" fill="#000"/>
+    <ellipse cx="100" cy="172" rx="18" ry="20" fill="#3a0010"/>
+  </svg>
+</div>
+
+<div class="panel" id="gate" hidden>
+  <div class="card">
+    <h1>Oh. It got dark.</h1>
+    <p>Something is moving around in here. Sound on, if you can.</p>
+    <button id="pickup" type="button">Pick up the torch</button>
+  </div>
+</div>
+
+<div class="panel" id="end" hidden>
+  <div class="card">
+    <h1>See you after dark</h1>
+    <p>They'll be waiting next time your screen goes dark.</p>
+    <div class="row">
+      <button id="again" type="button">Visit again</button>
+      <button id="lightson" class="quiet" type="button">Lights on</button>
+    </div>
+  </div>
+</div>
+
+<template id="ghostTpl">
+  <div class="inner"><svg viewBox="0 0 74 86">
+    <path class="body" d="M37 2C18 2 6 17 6 36v44l8-7 8 8 8-8 7 8 7-8 8 8 8-8 8 7V36C68 17 56 2 37 2z" fill="#f6f4ff"/>
+    <ellipse class="eye" cx="27" cy="36" rx="4.5" ry="6" fill="#1b1a2b"/>
+    <ellipse class="eye" cx="47" cy="36" rx="4.5" ry="6" fill="#1b1a2b"/>
+    <ellipse cx="19" cy="46" rx="5" ry="3" fill="#ffb8d0" opacity=".8"/>
+    <ellipse cx="55" cy="46" rx="5" ry="3" fill="#ffb8d0" opacity=".8"/>
+    <path d="M32 50q5 5 10 0" stroke="#1b1a2b" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  </svg></div>
+</template>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const body = document.body, veil = $('veil'), torch = $('torch'), line = $('line');
+  const tpl = $('ghostTpl');
+  const mq = matchMedia('(prefers-color-scheme: dark)');
+
+  // ---------- room pieces ----------
+  const CANDLES = [[14, 30.5], [64, 37], [89, 30], [38, 80], [73, 93]];
+  const candles = CANDLES.map(([lx, ty]) => {
+    const c = document.createElement('div');
+    c.className = 'candle';
+    c.innerHTML = '<div class="halo"></div><svg viewBox="0 0 26 54"><path class="flame" d="M13 2c4 6 6 9 6 12a6 6 0 0 1-12 0c0-3 2-6 6-12z" fill="#ffcf6b"/><rect x="12" y="16" width="2" height="6" fill="#2b2d42"/><rect x="5" y="22" width="16" height="30" rx="3" fill="#efe7f5"/><ellipse cx="13" cy="52" rx="11" ry="3" fill="#8794b8"/></svg>';
+    body.appendChild(c);
+    const s = document.createElement('i');
+    s.className = 'spark';
+    body.appendChild(s);
+    return { el: c, spark: s, lx, ty, lit: false };
+  });
+  function placeCandles() {
+    candles.forEach(c => {
+      c.x = innerWidth * c.lx / 100; c.y = innerHeight * c.ty / 100;
+      c.el.style.left = c.x + 'px'; c.el.style.top = c.y + 'px';
+      c.spark.style.left = c.x + 'px'; c.spark.style.top = (c.y - 44) + 'px';
+    });
+  }
+  function makeGhost(cls, tint) {
+    const g = document.createElement('div');
+    g.className = 'ghost ' + (cls || '');
+    g.appendChild(tpl.content.cloneNode(true));
+    if (tint) g.querySelector('.body').setAttribute('fill', tint);
+    body.appendChild(g);
+    return g;
+  }
+  const ghost = makeGhost();
+  const G = { x: 0, y: 0 };
+  function putGhost(x, y) { G.x = x; G.y = y; ghost.style.left = x + 'px'; ghost.style.top = y + 'px'; }
+
+  // ---------- pointer / torch ----------
+  let px = innerWidth / 2, py = innerHeight / 2;
+  const R = () => Math.max(70, Math.min(innerWidth, innerHeight) * 0.13);
+  function pointer(e) {
+    px = e.clientX; py = e.clientY;
+    veil.style.setProperty('--x', px + 'px');
+    veil.style.setProperty('--y', py + 'px');
+    torch.style.transform = `translate(${px - 5}px, ${py - 5}px)`;
+  }
+  addEventListener('pointermove', pointer);
+  addEventListener('pointerdown', pointer);
+  const lit = (x, y, k = 0.8) => Math.hypot(px - x, py - y) < R() * k;
+
+  // ---------- audio ----------
+  let ac = null, drone = null, music = null;
+  function audio() {
+    if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; } }
+    if (ac && ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  function tone(f, dur, type = 'sine', vol = .2, when = 0, glideTo) {
+    if (!ac) return;
+    const t = ac.currentTime + when, o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t);
+    if (glideTo) o.frequency.exponentialRampToValueAtTime(glideTo, t + dur);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .01);
+    g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + dur + .05);
+  }
+  const PENTA = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];
+  const chime = i => { tone(PENTA[i], 1.8, 'triangle', .18); tone(PENTA[i] * 2, 1.2, 'sine', .06); };
+  const squeak = () => { tone(700, .12, 'sine', .2, 0, 1500); tone(800, .14, 'sine', .2, .14, 1700); };
+  const giggle = () => [980, 860, 980, 820, 940, 760].forEach((f, i) => tone(f, .09, 'sine', .14, i * .1, f * .85));
+  const click = () => { tone(2400, .03, 'square', .08); tone(180, .08, 'sine', .3, 0, 60); };
+  function startDrone() {
+    if (!ac || drone) return;
+    const g = ac.createGain(); g.gain.value = 0; g.connect(ac.destination);
+    g.gain.linearRampToValueAtTime(.05, ac.currentTime + 2);
+    const os = [55, 82.4, 110.3].map((f, i) => { const o = ac.createOscillator(); o.frequency.value = f; const og = ac.createGain(); og.gain.value = [1, .5, .2][i]; o.connect(og); og.connect(g); o.start(); return o; });
+    drone = { g, os };
+  }
+  function stopDrone() {
+    if (!drone || !ac) return;
+    const d = drone; drone = null;
+    d.g.gain.cancelScheduledValues(ac.currentTime);
+    d.g.gain.setValueAtTime(d.g.gain.value, ac.currentTime);
+    d.g.gain.linearRampToValueAtTime(0, ac.currentTime + 1.5);
+    setTimeout(() => d.os.forEach(o => o.stop()), 1600);
+  }
+  const MELODY = [5, 3, 2, 3, 4, 3, 1, -1, 2, 1, 0, 1, 3, 2, 0, -1];
+  function startMusic() {
+    if (!ac || music) return;
+    let i = 0;
+    music = setInterval(() => {
+      const n = MELODY[i++ % MELODY.length];
+      if (n >= 0) { tone(PENTA[n] * 2, .9, 'triangle', .07); tone(PENTA[n], .6, 'sine', .04); }
+      if (i % 4 === 1) tone(PENTA[0] / 2, 1.2, 'sine', .07);
+    }, 330);
+  }
+  function stopMusic() { clearInterval(music); music = null; }
+  function scream() {
+    if (!ac) return;
+    const t = ac.currentTime, out = ac.createGain();
+    out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(.9, t + .02); out.gain.exponentialRampToValueAtTime(.001, t + 1.6);
+    const sh = ac.createWaveShaper(), curve = new Float32Array(1024);
+    for (let i = 0; i < 1024; i++) curve[i] = Math.tanh((i / 512 - 1) * 6);
+    sh.curve = curve; sh.connect(out); out.connect(ac.destination);
+    [1, 1.07, 1.5].forEach(m => {
+      const o = ac.createOscillator(); o.type = 'sawtooth';
+      o.frequency.setValueAtTime(1100 * m, t); o.frequency.exponentialRampToValueAtTime(380 * m, t + 1.4);
+      const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 23; lg.gain.value = 60 * m;
+      lfo.connect(lg); lg.connect(o.frequency);
+      const g = ac.createGain(); g.gain.value = .25; o.connect(g); g.connect(sh);
+      o.start(t); lfo.start(t); o.stop(t + 1.6); lfo.stop(t + 1.6);
+    });
+    const buf = ac.createBuffer(1, ac.sampleRate * 1.2, ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    const n = ac.createBufferSource(); n.buffer = buf;
+    const bp = ac.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2200; bp.Q.value = .8;
+    const ng = ac.createGain(); ng.gain.value = .5; n.connect(bp); bp.connect(ng); ng.connect(sh); n.start(t);
+    tone(120, .5, 'sine', 1, 0, 35);
+  }
+
+  // ---------- captions ----------
+  let sayTimer;
+  function say(text) {
+    clearTimeout(sayTimer);
+    line.style.opacity = '0';
+    sayTimer = setTimeout(() => { line.textContent = text; line.style.opacity = '1'; }, 280);
+  }
+
+  // ---------- frame loop ----------
+  let dark = .985, darkTarget = .985, follow = false, friends = [], swirl = false, candlePhase = false, litCount = 0;
+  const candleLines = ['That one’s lit.', 'Cosier already.', 'Keep going.', 'One more!'];
+  let onAllLit = null;
+  function frame(now) {
+    dark += (darkTarget - dark) * .03;
+    veil.style.setProperty('--dark', dark.toFixed(3));
+    veil.style.setProperty('--r', R() + 'px');
+    if (follow) putGhost(G.x + (px + 55 - G.x) * .06, G.y + (py - 50 - G.y) * .06);
+    if (candlePhase) {
+      candles.forEach(c => {
+        if (!c.lit && lit(c.x, c.y - 30, .7)) {
+          c.lit = true; c.el.classList.add('lit'); c.spark.classList.remove('on');
+          chime(litCount); litCount++;
+          darkTarget = .985 - litCount * .07;
+          if (litCount < candles.length) say(candleLines[litCount - 1] || 'Nice.');
+          else { candlePhase = false; if (onAllLit) onAllLit(); }
+        }
+      });
+    }
+    const t = now / 1000;
+    friends.forEach((f, i) => {
+      let tx, ty;
+      if (swirl) {
+        const a = t * (0.9 + i * .07) + i * Math.PI * 2 / friends.length;
+        const rr = 70 + (i % 3) * 28 + Math.sin(t * 2 + i) * 10;
+        tx = px + Math.cos(a) * rr; ty = py + Math.sin(a) * rr * .8;
+      } else {
+        tx = f.hx + Math.sin(t * .8 + i) * 40; ty = f.hy + Math.cos(t * .6 + i * 1.7) * 30;
+      }
+      f.vx = (f.vx + (tx - f.x) * .004) * .92; f.vy = (f.vy + (ty - f.y) * .004) * .92;
+      f.x += f.vx; f.y += f.vy;
+      f.el.style.left = f.x + 'px'; f.el.style.top = f.y + 'px';
+      f.el.style.transform = `translate(-50%, -50%) rotate(${Math.max(-25, Math.min(25, f.vx * 3))}deg)`;
+    });
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- story ----------
+  let tok = 0;
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const until = pred => new Promise(r => { const f = () => (pred() ? r() : requestAnimationFrame(f)); f(); });
+
+  function resetScene() {
+    follow = false; swirl = false; candlePhase = false; litCount = 0; onAllLit = null;
+    darkTarget = dark = .985;
+    ghost.className = 'ghost';
+    candles.forEach(c => { c.lit = false; c.el.classList.remove('lit'); c.spark.classList.remove('on'); });
+    friends.forEach(f => f.el.remove()); friends = [];
+    $('scare').className = ''; body.classList.remove('shake');
+    stopMusic();
+  }
+
+  async function story() {
+    const my = ++tok, ok = () => my === tok;
+    resetScene(); placeCandles();
+    $('end').hidden = true;
+    startDrone();
+    say('Click. Someone turned off the lights.');
+    await wait(3000); if (!ok()) return;
+
+    // 1. find it
+    const A = [innerWidth * .82, innerHeight * .64];
+    const B = [innerWidth * .2, innerHeight * .74];
+    putGhost(...A); ghost.classList.add('show');
+    say('You’re not alone in here. Have a look around.');
+    await until(() => !ok() || lit(G.x, G.y)); if (!ok()) return;
+    squeak(); say('Eep!');
+    await wait(450); if (!ok()) return;
+    ghost.classList.add('flee'); putGhost(...B);
+    await wait(1000); if (!ok()) return;
+    ghost.classList.remove('flee');
+    say('It’s shy. Try to find it again.');
+
+    // 2. boo
+    await until(() => !ok() || lit(G.x, G.y)); if (!ok()) return;
+    ghost.classList.remove('show');
+    scream();
+    $('scare').className = 'go'; body.classList.add('shake');
+    await wait(1300); if (!ok()) return;
+    $('scare').className = 'go out'; body.classList.remove('shake');
+    await wait(500); if (!ok()) return;
+    $('scare').className = '';
+
+    // 3. friendly
+    putGhost(px + 60, py - 60); ghost.classList.add('front');
+    giggle(); say('Hehe. Sorry. I couldn’t resist.');
+    follow = true;
+    await wait(3000); if (!ok()) return;
+    say('I don’t get many visitors.');
+    await wait(2800); if (!ok()) return;
+    say('Help me light the candles? Look for the little sparkles.');
+    candles.forEach(c => c.spark.classList.add('on'));
+    candlePhase = true;
+    await new Promise(r => { onAllLit = r; }); if (!ok()) return;
+
+    // 4. party
+    darkTarget = .5;
+    giggle();
+    say('Oh! Look who came out.');
+    const tints = ['#f6f4ff', '#ffe6f0', '#e4f2ff', '#fff4d6', '#eaffef', '#f3e8ff', '#ffefe0', '#e8f0ff'];
+    tints.forEach((tint, i) => {
+      const el = makeGhost('friend front', tint);
+      el.style.opacity = '0';
+      const c = candles[i % candles.length];
+      const f = { el, x: c.x, y: c.y - 20, vx: (Math.random() - .5) * 8, vy: -4 - Math.random() * 4,
+        hx: innerWidth * (.15 + .7 * Math.random()), hy: innerHeight * (.2 + .5 * Math.random()) };
+      el.style.left = f.x + 'px'; el.style.top = f.y + 'px';
+      friends.push(f);
+      setTimeout(() => { if (ok()) { el.style.opacity = '1'; tone(PENTA[i % 6] * 2, .3, 'sine', .08); } }, i * 260);
+    });
+    startMusic();
+    await wait(5500); if (!ok()) return;
+    swirl = true;
+    say('Wave your light around. They love that.');
+    await wait(9000); if (!ok()) return;
+    say('Faster! Do a big circle.');
+    await wait(7000); if (!ok()) return;
+    swirl = false;
+    say('Thank you for staying a while.');
+    await wait(3500); if (!ok()) return;
+
+    // 5. goodbye
+    say('Come back when it’s dark, okay?');
+    ghost.classList.add('wave');
+    for (let i = friends.length - 1; i >= 0; i--) {
+      friends[i].el.style.opacity = '0';
+      await wait(280); if (!ok()) return;
+    }
+    stopMusic();
+    for (const c of candles) { c.el.classList.remove('lit'); tone(220, .4, 'sine', .05); await wait(350); if (!ok()) return; }
+    darkTarget = .985; follow = false;
+    await wait(1200); if (!ok()) return;
+    ghost.classList.remove('front', 'wave');
+    say('');
+    await wait(900); if (!ok()) return;
+    $('end').hidden = false;
+  }
+
+  // ---------- day / night ----------
+  let mode = 'day', manualDay = false, manualNight = false;
+  const themeDark = () => {
+    const t = document.documentElement.getAttribute('data-theme');
+    return t === 'dark' ? true : t === 'light' ? false : mq.matches;
+  };
+  function enterNight(viaGesture) {
+    mode = 'night';
+    body.classList.add('night');
+    placeCandles();
+    if (viaGesture) { $('gate').hidden = true; story(); }
+    else { tok++; resetScene(); say(''); $('gate').hidden = false; }
+  }
+  function enterDay(msg) {
+    tok++; mode = 'day';
+    resetScene(); stopDrone();
+    body.classList.remove('night');
+    $('gate').hidden = true; $('end').hidden = true;
+    say(msg || 'A perfectly ordinary room.');
+  }
+  function sync() {
+    const want = !manualDay && (themeDark() || manualNight);
+    if (want && mode === 'day') enterNight(false);
+    else if (!want && mode !== 'day') enterDay('They’re asleep now. Come back when it’s dark.');
+  }
+  const themeChanged = () => { manualDay = false; manualNight = false; sync(); };
+  if (mq.addEventListener) mq.addEventListener('change', themeChanged); else mq.addListener(themeChanged);
+  new MutationObserver(themeChanged).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  $('switch').addEventListener('click', () => { audio(); click(); manualDay = false; manualNight = true; enterNight(true); });
+  $('pickup').addEventListener('click', e => { e.stopPropagation(); audio(); click(); $('gate').hidden = true; story(); });
+  $('again').addEventListener('click', () => { audio(); story(); });
+  $('lightson').addEventListener('click', () => { audio(); click(); manualDay = true; manualNight = false; enterDay('Lights on. Everyone’s gone quiet.'); });
+  addEventListener('resize', placeCandles);
+
+  placeCandles();
+  sync();
+})();
+</script>
+
+</body></html>
